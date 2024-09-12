@@ -16,6 +16,7 @@ import {
   sendFriendRequest,
   acceptFriendRequest,
   getUserNotifications,
+  logout,
 } from "../controllers/user.controller.js";
 
 const router = Router();
@@ -38,4 +39,5 @@ router
   .put(validateAcceptedFriendRequest(), validateHandler, acceptFriendRequest);
 
 router.route("/notifications").get(getUserNotifications);
+router.route("/logout").get(logout);
 export default router;

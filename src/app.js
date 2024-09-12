@@ -11,11 +11,14 @@ import express from "express";
 import path from "path";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import { createServer } from "http";
+import { initializeIO } from "./socket.js";
 
 /**
  * Initialize express application.
  */
 const app = express();
+const server = createServer(app);
 /**
  * Enable CORS with specific origin and credentials settings.
  */
@@ -25,7 +28,7 @@ app.use(
     credentials: true,
   })
 );
-
+initializeIO(server);
 /**
  * Set up middleware for request parsing and static file serving:
  *
@@ -68,4 +71,4 @@ app.use("/api/user", userRouter);
 app.use("/api/chats", chatRouter);
 app.use("/api/admin", adminRouter);
 
-export default app;
+export default server;

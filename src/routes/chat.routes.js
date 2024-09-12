@@ -4,7 +4,7 @@ import {
   validateNewGroup,
   validateAddMembers,
   validateUserAndChatId,
-  valdateSendAttachments,
+  validateSendAttachments,
   validateChatId,
   validateHandler,
   validateRenameGroup,
@@ -53,7 +53,7 @@ router
   .route("/message")
   .post(
     attachmentMulter,
-    valdateSendAttachments(),
+    validateSendAttachments(),
     validateHandler,
     sendAttachments
   );

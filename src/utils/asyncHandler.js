@@ -10,10 +10,9 @@ const AsyncHandler = (func) => async (req, res, next) => {
   try {
     await func(req, res, next);
   } catch (error) {
-    // Handle the error by sending a JSON response with the error code and message
-    res
-      .status(error.code|| error.statusCode || 500)
-      .json({ success: false, message: error.message });
+    return res
+      .status(error.code || error.statusCode || 500)
+      .json({ success: false, message: error.message || "Server Error" });
   }
 };
 

@@ -62,6 +62,16 @@ const login = AsyncHandler(async (req, res) => {
     );
 });
 
+const logout = AsyncHandler(async (req, res) => {
+  await User.findByIdandUpdate(req.user._id, { refreshToken: "" });
+  res.clearCookie("accessToken");
+  res.clearCookie("refreshToken");
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { message: "Logged out successfully" }));
+});
+
 const getProfile = AsyncHandler(async (req, res) => {
   const user = await User.findById(req?.user._id).select(
     "-refreshToken -createdAt -updatedAt -__v"
@@ -238,7 +248,7 @@ const getUserFriends = AsyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(new ApiResponse(200, { friends: availableFriends }));
-  }else{
+  } else {
     return res.status(200).json(new ApiResponse(200, { friends }));
   }
 });
@@ -246,6 +256,7 @@ const getUserFriends = AsyncHandler(async (req, res) => {
 export {
   registerUser,
   login,
+  logout,
   getProfile,
   searchUsers,
   sendFriendRequest,

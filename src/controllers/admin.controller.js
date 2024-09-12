@@ -4,6 +4,28 @@ import ApiResponse from "../utils/apiResponse.js";
 import { User } from "../models/user.schema.js";
 import { Chat } from "../models/chat.schema.js";
 import { Message } from "../models/message.schema.js";
+import jwt from "jsonwebtoken";
+import { COOKIE_OPTIONS } from "../constants/constants.js";
+
+const adminLogin = AsyncHandler(async (req, res) => {
+  const { secretKey } = req.body;
+  const isMatched = secretKey === process.env.ADMIN_SECRET_KEY;
+  if (!isMatched) {
+    throw new ApiError(401, "Invalid secret key");
+  }
+  const adminToken = jwt.sign({}, process.env.REFRESH_TOKEN_SECRET, {
+    expiresIn: 1000 * 60 * 15,
+  });
+
+  return res
+    .status(200)
+    .cookie("adminToken", adminToken, COOKIE_OPTIONS)
+    .json(new ApiResponse(200, "Welcome Boss"));
+});
+
+const verifyAdmin = AsyncHandler(async (req, res) => {
+  return res.status(200).json(new ApiResponse(200, { admin: true }));
+});
 
 const getAllUsers = AsyncHandler(async (req, res) => {
   const users = await User.aggregate([
@@ -211,4 +233,49 @@ const getAllMessages = AsyncHandler(async (req, res) => {
   return res.status(200).json(200, { messages });
 });
 
-export { getAllUsers, getAllChats, getAllMessages };
+const getDahboardStats = AsyncHandler(async (req, res) => {
+  const [totalUsers, totalChats, totalMessages, totalGroups] =
+    await Promise.all([
+      User.countDocuments(),
+      Chat.countDocuments(),
+      Message.countDocuments(),
+      Chat.countDocuments({ groupChat: true }),
+    ]);
+  const today = new Date();
+  const last7days = new Date();
+  last7days.setDate(today.getDate() - 7);
+  const last7daysMessages = await Message.find({
+    createdAt: { $gte: last7days, $lte: today },
+  }).select("createdAt");
+  const messages = new Array(7).fill(0);
+  const dayInMS = 1000 * 60 * 60 * 24;
+  last7daysMessages.forEach((message) => {
+    const idx = (today.getTime() - message.createdAt.getTime()) / dayInMS;
+    const index = Math.floor(idx);
+    messages[6 - index]++;
+  });
+
+  const stats = {
+    totalUsers,
+    totalChats,
+    totalGroups,
+    totalMessages,
+    messagesChart: messages,
+  };
+  return res.status(200).json(new ApiResponse(200, { stats }));
+});
+
+const adminLogout = AsyncHandler(async (req, res) => {
+  res.clearCookie("adminToken");
+  return res.status(200).json(new ApiResponse(200, "Logged out successfully"));
+});
+
+export {
+  adminLogin,
+  verifyAdmin,
+  getAllUsers,
+  getAllChats,
+  getAllMessages,
+  getDahboardStats,
+  adminLogout,
+};

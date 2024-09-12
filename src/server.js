@@ -1,5 +1,5 @@
 import "./env.js";
-import app from "./app.js";
+import server from "./app.js";
 import connectToDB from "./config/mongodb.js";
 /**
  * The port number on which the server will run.
@@ -19,7 +19,7 @@ connectToDB()
      * Starts the Express server and listens on the specified port.
      * Logs a message indicating the server is running and the port number.
      */
-    const server = app.listen(PORT, () => {
+    const app = server.listen(PORT, () => {
       console.log(`⚙️ Server is running at port --> ${process.env.PORT}`);
     });
     /**
@@ -27,7 +27,7 @@ connectToDB()
      * Logs the error to the console.
      * @param {Error} error - The error object caught by the server.
      */
-    server.on("error", (error) => {
+    app.on("error", (error) => {
       console.log("😵‍💫 Error in Server ON --> ", error);
       throw error;
     });
