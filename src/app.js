@@ -25,22 +25,14 @@ const server = createServer(app);
  */
 app.use(
   cors({
-    origin: [
-      process.env.CORS_API,
-      process.env.CORS_SOCKET,
-      "https://localhost:5173",
-    ],
+    origin: [process.env.CORS_API, process.env.CORS_SOCKET],
     credentials: true,
   })
 );
 
 const io = new Server(server, {
   cors: {
-    origin: [
-      process.env.CORS_API,
-      process.env.CORS_SOCKET,
-      "https://localhost:5173",
-    ],
+    origin: [process.env.CORS_API, process.env.CORS_SOCKET],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
   },
