@@ -3,5 +3,5 @@ export const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: true,
   sameSite: "none",
-  domain: "localhost",
+  // domain: "localhost",
 };
