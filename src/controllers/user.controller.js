@@ -7,11 +7,14 @@ import { generateJwtTokens } from "../utils/generateJwtTokens.js";
 import { COOKIE_OPTIONS } from "../constants/constants.js";
 import { Chat } from "../models/chat.schema.js";
 import { Request } from "../models/request.schema.js";
-import { emitEvent } from "../utils/features.js";
+import { emitAlertEvent, emitEvent } from "../utils/features.js";
 import {
+  NEW_FRIEND,
+  NEW_REQUEST,
   NEW_REQUEST_ALERT,
   REFTCH_CHATS,
 } from "../constants/event.constants.js";
+import { escapeRegex } from "../utils/helper.js";
 
 const registerUser = AsyncHandler(async (req, res) => {
   const { name, username, email, password, bio } = req.body;
@@ -32,12 +35,22 @@ const registerUser = AsyncHandler(async (req, res) => {
     avatar: uploadAvatar,
   });
   const createdUser = await User.findById(newUser._id);
-  res.status(201).json(new ApiResponse(201, { createdUser }));
+  const tokens = await generateJwtTokens(User, createdUser._id);
+  res
+    .status(201)
+    .cookie("accessToken", tokens.accessToken, COOKIE_OPTIONS)
+    .cookie("refreshToken", tokens.refreshToken, COOKIE_OPTIONS)
+    .json(
+      new ApiResponse(201, {
+        createdUser,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      })
+    );
 });
 
 const login = AsyncHandler(async (req, res) => {
   const { email, username, password } = req.body;
-
   const user = await User.findOne({
     $or: [{ username }, { email }],
   }).select("password");
@@ -46,8 +59,9 @@ const login = AsyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid email or password");
 
   const tokens = await generateJwtTokens(User, user._id);
+  console.log(tokens);
   const existingUser = await User.findById(user._id).select(
-    "-refreshToken -createdAt -updatedAt -__v"
+    "-refreshToken -updatedAt -__v"
   );
   return res
     .status(200)
@@ -63,7 +77,7 @@ const login = AsyncHandler(async (req, res) => {
 });
 
 const logout = AsyncHandler(async (req, res) => {
-  await User.findByIdandUpdate(req.user._id, { refreshToken: "" });
+  await User.findByIdAndUpdate(req.user._id, { refreshToken: "" });
   res.clearCookie("accessToken");
   res.clearCookie("refreshToken");
 
@@ -74,9 +88,8 @@ const logout = AsyncHandler(async (req, res) => {
 
 const getProfile = AsyncHandler(async (req, res) => {
   const user = await User.findById(req?.user._id).select(
-    "-refreshToken -createdAt -updatedAt -__v"
+    "-refreshToken -updatedAt -__v"
   );
-  console.log(user);
   return res.status(200).json(new ApiResponse(200, { user }));
 });
 
@@ -92,7 +105,8 @@ const searchUsers = AsyncHandler(async (req, res) => {
     .filter((member) => member.toString() !== userId.toString());
 
   myFriendsIds.push(userId);
-  console.log(myFriendsIds);
+  const escapedName = escapeRegex(name);
+  console.log(escapedName);
   const AllUsersExceptFriends = await User.aggregate([
     {
       $match: {
@@ -102,8 +116,8 @@ const searchUsers = AsyncHandler(async (req, res) => {
     {
       $match: {
         $or: [
-          { username: { $regex: name, $options: "i" } },
-          { name: { $regex: name, $options: "i" } },
+          { username: { $regex: escapedName, $options: "i" } },
+          { name: { $regex: escapedName, $options: "i" } },
         ],
       },
     },
@@ -124,6 +138,7 @@ const searchUsers = AsyncHandler(async (req, res) => {
 
 const sendFriendRequest = AsyncHandler(async (req, res) => {
   const { receiver } = req.body;
+
   const senderId = req.user._id;
   if (senderId.toString() === receiver.toString())
     throw new ApiError(404, "Can't send friend request to own");
@@ -133,18 +148,23 @@ const sendFriendRequest = AsyncHandler(async (req, res) => {
       { sender: receiver, receiver: senderId },
     ],
   });
-  console.log(request);
+
   if (request) throw new ApiError(400, "Friend request already exists");
   await Request.create({
     sender: senderId,
     receiver,
   });
 
-  emitEvent(req, NEW_REQUEST_ALERT, [receiver]);
+  emitAlertEvent(
+    req,
+    NEW_REQUEST,
+    [receiver._id],
+    `${req.user.name} send you friend request`
+  );
 
   return res
     .status(201)
-    .json(new ApiResponse(201, "Request sent successfully"));
+    .json(new ApiResponse(201, { message: "Request sent successfully" }));
 });
 
 const acceptFriendRequest = AsyncHandler(async (req, res) => {
@@ -153,27 +173,39 @@ const acceptFriendRequest = AsyncHandler(async (req, res) => {
     .populate("sender", "name")
     .populate("receiver", "name");
 
-  if (!request) throw new ApiError(404, "Request not found");
+  if (!request || request.status === "accepted")
+    throw new ApiError(404, "Request not found");
   if (request.receiver._id.toString() !== req.user._id.toString())
-    throw new ApiError(401, "You are unauthorized to acceept this request");
+    throw new ApiError(401, {
+      message: "You are unauthorized to acceept this request",
+    });
   if (!accept) {
     request.status = "rejected";
     await request.save();
     return res
       .status(200)
-      .json(new ApiResponse(200, "Friend Request rejected"));
+      .json(new ApiResponse(200, { message: "Friend Request rejected" }));
   }
   const members = [request.receiver._id, request.sender._id];
   request.status = "accepted";
-  await Promise.all([
+  const [newChat] = await Promise.all([
     Chat.create({
       members,
       name: `${request.receiver.name}-${request.sender.name}`,
     }),
     request.save(),
   ]);
-  emitEvent(req, REFTCH_CHATS, members);
-  return res.status(200).json(new ApiResponse(200, "Friend Request accepted"));
+
+  emitEvent(req, REFTCH_CHATS, members, newChat._id);
+  emitAlertEvent(
+    req,
+    NEW_FRIEND,
+    [request.sender._id, request.receiver._id],
+    `${request.sender.name} and ${request.receiver.name} are friends now.`
+  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, { message: "Friend Request accepted" }));
 });
 
 const getUserNotifications = AsyncHandler(async (req, res) => {
@@ -181,9 +213,7 @@ const getUserNotifications = AsyncHandler(async (req, res) => {
   const requests = await Request.find({
     receiver: userId,
     status: "pending",
-  }).populate("sender", "name, avatar");
-
-  console.log(requests);
+  }).populate("sender", "name avatar");
 
   const allRequests = requests.map(({ _id, sender, status }) => ({
     _id,
@@ -206,7 +236,7 @@ const getUserFriends = AsyncHandler(async (req, res) => {
         $and: [
           {
             members: {
-              $in: [ObjectId("66d2af990cb27b53877a174e")],
+              $in: [req?.user?._id],
             },
           },
           { groupChat: false },
@@ -227,8 +257,17 @@ const getUserFriends = AsyncHandler(async (req, res) => {
     {
       $match: {
         "members._id": {
-          $ne: ObjectId("66d2af990cb27b53877a174e"),
+          $ne: req?.user?._id,
         },
+      },
+    },
+    {
+      $group: {
+        _id: "$members._id",
+        name: { $first: "$members.name" },
+        username: { $first: "$members.username" },
+        avatar: { $first: "$members.avatar.url" },
+        email: { $first: "$members.email" },
       },
     },
     {
@@ -236,7 +275,9 @@ const getUserFriends = AsyncHandler(async (req, res) => {
         _id: 1,
         name: 1,
         username: 1,
-        avatar: "$members.avatar.url",
+        bio: 1,
+        email: 1,
+        avatar: 1,
       },
     },
   ]);
@@ -253,6 +294,20 @@ const getUserFriends = AsyncHandler(async (req, res) => {
   }
 });
 
+const removeFriendRequest = AsyncHandler(async (req, res) => {
+  const { requestId } = req.body;
+  const request = await Request.findById(requestId);
+  if (!request) throw new ApiError(404, "Request not found");
+  if (request.sender.toString() !== req.user?._id.toString())
+    throw new ApiError(401, "You are not allowed to do this");
+  if (request.status !== "pending")
+    throw new ApiError(403, "Request already accepted or rejected");
+  await request.deleteOne();
+  return res
+    .status(200)
+    .json(new ApiResponse("Request removed", { request: request._id }));
+});
+
 export {
   registerUser,
   login,
@@ -263,4 +318,5 @@ export {
   acceptFriendRequest,
   getUserNotifications,
   getUserFriends,
+  removeFriendRequest,
 };

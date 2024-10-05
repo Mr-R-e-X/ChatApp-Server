@@ -34,7 +34,7 @@ router.route("/get-chats").get(getUserChats);
 router.route("/get-groups").get(getUserGroups);
 router
   .route("/add-members")
-  .post(validateAddMembers(), validateHandler, addMembersInGroup);
+  .put(validateAddMembers(), validateHandler, addMembersInGroup);
 router
   .route("/remove-member")
   .put(validateUserAndChatId(), validateHandler, removeMemberFromGroup);

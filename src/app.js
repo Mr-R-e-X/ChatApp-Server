@@ -12,7 +12,8 @@ import path from "path";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { createServer } from "http";
-import { initializeIO } from "./socket.js";
+import { Server } from "socket.io";
+import { initializeIO } from "./socket/socket.js";
 
 /**
  * Initialize express application.
@@ -24,11 +25,28 @@ const server = createServer(app);
  */
 app.use(
   cors({
-    origin: process.env.CORS,
+    origin: [
+      process.env.CORS_API,
+      process.env.CORS_SOCKET,
+      "https://localhost:5173",
+    ],
     credentials: true,
   })
 );
-initializeIO(server);
+
+const io = new Server(server, {
+  cors: {
+    origin: [
+      process.env.CORS_API,
+      process.env.CORS_SOCKET,
+      "https://localhost:5173",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  },
+});
+
+app.set("io", io);
 /**
  * Set up middleware for request parsing and static file serving:
  *
@@ -37,6 +55,7 @@ initializeIO(server);
  * - `express.static(path.resolve("public"))`: Serves static files from the "public" directory.
  * - `cookieParser()`: Parses cookies attached to the client request object.
  */
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.resolve("public")));
@@ -53,10 +72,6 @@ app.use(cookieParser());
  * @returns {String} - Sends a wekcome message to the client
  */
 
-app.get("/", (req, res) => {
-  res.send("Welcome to Chat App Server...!!!");
-});
-
 /**
  * Import user router for handling user-related routes.
  * @module userRouter
@@ -64,11 +79,20 @@ app.get("/", (req, res) => {
 import userRouter from "./routes/user.routes.js";
 import chatRouter from "./routes/chat.routes.js";
 import adminRouter from "./routes/admin.routes.js";
+import morganMiddleware from "./logger/morgan.middleware.js";
+import { errorHandler } from "./middlewares/error.middleware.js";
 /**
  * Use userRouter for routes starting with /api/user.
  */
+app.use(morganMiddleware);
+app.get("/", (req, res) => {
+  res.send("Welcome to Chat App Server...!!!");
+});
 app.use("/api/user", userRouter);
 app.use("/api/chats", chatRouter);
 app.use("/api/admin", adminRouter);
 
+initializeIO(io);
+
+app.use(errorHandler);
 export default server;

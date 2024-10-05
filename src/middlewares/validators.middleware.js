@@ -51,17 +51,9 @@ const validateRegistration = () => [
  * Validator for user login.
  */
 const validateLogin = () => [
-  body("email")
-    .optional()
-    .isString()
-    .withMessage("Email must be a string")
-    .isEmail()
-    .withMessage("Invalid email format"),
+  body("email").optional().isEmail().withMessage("Invalid email format"),
   body("username")
     .optional()
-    .isString()
-    .withMessage("Username must be a string")
-    .trim()
     .notEmpty()
     .withMessage("Username is required if email is not provided"),
   body("password")
@@ -104,12 +96,7 @@ const validateNewGroup = () => [
  * Validator for adding members to a group.
  */
 const validateAddMembers = () => [
-  body("chatId")
-    .isString()
-    .withMessage("Chat ID must be a string")
-    .trim()
-    .notEmpty()
-    .withMessage("Chat ID is required"),
+  body("chatId").trim().notEmpty().withMessage("Chat ID is required"),
   body("members")
     .isArray({ min: 1, max: 100 })
     .withMessage("Members must be an array with between 1 and 100 items")
@@ -126,12 +113,7 @@ const validateAddMembers = () => [
  * Validator for user ID and chat ID.
  */
 const validateUserAndChatId = () => [
-  body("userId")
-    .isString()
-    .withMessage("User ID must be a string")
-    .trim()
-    .notEmpty()
-    .withMessage("User ID is required"),
+  body("userId").trim().notEmpty().withMessage("User ID is required"),
   body("chatId")
     .isString()
     .withMessage("Chat ID must be a string")
@@ -144,12 +126,7 @@ const validateUserAndChatId = () => [
  * Validator for sending attachments.
  */
 const validateSendAttachments = () => [
-  body("chatId")
-    .isString()
-    .withMessage("Chat ID must be a string")
-    .trim()
-    .notEmpty()
-    .withMessage("Chat ID is required"),
+  body("chatId").notEmpty().withMessage("Chat ID is required"),
   check("files").custom((value, { req }) => {
     if (!req.files || req.files.length === 0) {
       throw new ApiError(400, "At least one attachment is required");
@@ -165,54 +142,29 @@ const validateSendAttachments = () => [
  * Validator for chat ID in URL parameters.
  */
 const validateChatId = () => [
-  param("id")
-    .isString()
-    .withMessage("Chat ID must be a string")
-    .trim()
-    .notEmpty()
-    .withMessage("Chat ID is required"),
+  param("id").notEmpty().withMessage("Chat ID is required"),
 ];
 
 /**
  * Validator for renaming a group.
  */
 const validateRenameGroup = () => [
-  param("id")
-    .isString()
-    .withMessage("Chat ID must be a string")
-    .trim()
-    .notEmpty()
-    .withMessage("Chat ID is required"),
-  body("name")
-    .isString()
-    .withMessage("New group name must be a string")
-    .trim()
-    .notEmpty()
-    .withMessage("New group name is required"),
+  param("id").notEmpty().withMessage("Chat ID is required"),
+  body("name").notEmpty().withMessage("New group name is required"),
 ];
 
 /**
  * Validator for sending a new friend request.
  */
 const validateNewFriendRequest = () => [
-  body("receiver")
-    .isString()
-    .withMessage("Receiver ID must be a string")
-    .trim()
-    .notEmpty()
-    .withMessage("Receiver ID is required"),
+  body("receiver").notEmpty().withMessage("Receiver ID is required"),
 ];
 
 /**
  * Validator for accepting a friend request.
  */
 const validateAcceptedFriendRequest = () => [
-  body("requestId")
-    .isString()
-    .withMessage("Request ID must be a string")
-    .trim()
-    .notEmpty()
-    .withMessage("Request ID is required"),
+  body("requestId").notEmpty().withMessage("Request ID is required"),
   body("accept")
     .isBoolean()
     .withMessage("Acceptance status must be a boolean")

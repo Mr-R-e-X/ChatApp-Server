@@ -46,6 +46,11 @@ const messageSchema = new Schema(
         },
       },
     ],
+    type: {
+      type: String,
+      enum: ["text", "alert"],
+      default: "text",
+    },
   },
   { timestamps: true }
 );

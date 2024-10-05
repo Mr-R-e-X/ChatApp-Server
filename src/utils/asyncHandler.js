@@ -6,13 +6,12 @@
  * @param {Function} func - The asynchronous route handler function to be wrapped.
  * @returns {Function} A new function that executes the original function and catches any errors.
  */
+
 const AsyncHandler = (func) => async (req, res, next) => {
   try {
     await func(req, res, next);
   } catch (error) {
-    return res
-      .status(error.code || error.statusCode || 500)
-      .json({ success: false, message: error.message || "Server Error" });
+    next(error);
   }
 };
 

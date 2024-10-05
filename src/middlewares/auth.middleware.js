@@ -13,7 +13,7 @@ const authenticateToken = AsyncHandler(async (req, res, next) => {
   const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
   if (!decodedToken) throw new ApiError(401, "Invalid token!");
   const user = await User.findById(decodedToken?._id).select(
-    "-refreshToken -createdAt -updatedAt -__v"
+    "-refreshToken -updatedAt -__v"
   );
   if (!user) throw new ApiError(401, "Unauthorized Request!");
   req.user = user;
@@ -42,5 +42,24 @@ export const checkAdminAccess = (req, res, next) => {
 
   next();
 };
+
+export const socketAuthenticator = AsyncHandler(async (err, socket, next) => {
+  try {
+    if (err) return next(err);
+    const token = socket.request.cookies["accessToken"];
+    if (!token) throw new ApiError(401, "Please login first");
+    const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    if (!decodedToken) throw new ApiError(401, "Invalid token");
+    const user = await User.findById(decodedToken._id).select(
+      "-refreshToken -updatedAt -__v"
+    );
+    if (!user) throw new ApiError(401, "Unauthorized request");
+    socket.user = user;
+    return next();
+  } catch (error) {
+    console.log(error);
+    next(new ApiError(401, "Please login to access the route"));
+  }
+});
 
 export default authenticateToken;
