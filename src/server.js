@@ -19,7 +19,7 @@ connectToDB()
      * Starts the Express server and listens on the specified port.
      * Logs a message indicating the server is running and the port number.
      */
-    const app = server.listen(PORT, () => {
+    const app = server.listen(PORT, "0.0.0.0", () => {
       console.log(`⚙️ Server is running at port --> ${process.env.PORT}`);
     });
     /**
