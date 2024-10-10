@@ -2,30 +2,25 @@ import cookieParser from "cookie-parser";
 import { v4 as uuid } from "uuid";
 import {
   ACCEPTED_INCOMING_CALL,
-  ANSWER_RESPONSE,
   CALL_ACCEPTED,
   CONNECT_TO_ROOM,
+  ICE_CANDIDATE,
   INCOMING_CALL,
-  NEW_ANSWER,
   NEW_MESSAGE,
   NEW_MESSAGE_ALERT,
-  NEW_OFFER_AWAITING,
-  RECEIVE_ICE_CANDIDATE_FROM_SIGNALING_SERVER,
+  RECEIVE_ICE_CANDIDATE,
   RTC_FINAL_NEGOTIATION,
   RTC_NEGOTIATION,
   RTC_NEGOTIATION_DONE,
   RTC_NEGOTIATION_NEEDED,
-  SEND_ICE_CANDIDATE_TO_SIGNALING_SERVER,
-  SEND_NEW_OFFER,
   START_NEW_CALL,
   START_TYPING,
   STOP_TYPING,
 } from "../constants/event.constants.js";
 import { socketAuthenticator } from "../middlewares/auth.middleware.js";
+import { Chat } from "../models/chat.schema.js";
 import { Message } from "../models/message.schema.js";
 import { getSocketIDs } from "../utils/features.js";
-import { Chat } from "../models/chat.schema.js";
-import mongoose from "mongoose";
 
 const userSocketIDs = new Map();
 const offers = new Map();
@@ -99,6 +94,26 @@ const initializeIO = (io) => {
       socket.on(STOP_TYPING, ({ chatId, members }) => {
         console.log("stopped typing :: ", chatId);
         socket.broadcast.to(chatId).emit(STOP_TYPING, { chatId, members });
+      });
+
+      socket.on(ICE_CANDIDATE, async ({ room, candidate, userId }) => {
+        console.log(`room from line 100 ${room.chatId}`);
+        const chatDetails = await Chat.findById(room.chatId);
+        if (!chatDetails) {
+          console.log("Chat not found");
+          return;
+        }
+        const memberSockets = chatDetails.members.map((member) =>
+          userSocketIDs.get(member.toString())
+        );
+        memberSockets.forEach((id) => {
+          console.log("EMITTING ICE CANDIDATE");
+          socket.to(id).emit(RECEIVE_ICE_CANDIDATE, {
+            room,
+            candidate,
+            userId,
+          });
+        });
       });
 
       socket.on(START_NEW_CALL, async ({ room, offer }) => {
