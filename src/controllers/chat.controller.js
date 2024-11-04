@@ -533,7 +533,7 @@ const sendAttachments = AsyncHandler(async (req, res) => {
   const attachments = await Promise.all(
     files.map(async (file) => {
       console.log(file);
-      return await uploadFileInCloudinary(file.path);
+      return await uploadFileInCloudinary(file);
     })
   );
   const messageForRealTime = {

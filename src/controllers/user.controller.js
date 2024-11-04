@@ -25,7 +25,8 @@ const registerUser = AsyncHandler(async (req, res) => {
   });
   if (existingUser)
     throw new ApiError(409, "User already exists with same username or email");
-  const uploadAvatar = await uploadFileInCloudinary(avatar.path);
+  const uploadAvatar = await uploadFileInCloudinary(avatar);
+  console.log(uploadAvatar);
   const newUser = await User.create({
     name,
     username,
@@ -35,6 +36,7 @@ const registerUser = AsyncHandler(async (req, res) => {
     avatar: uploadAvatar,
   });
   const createdUser = await User.findById(newUser._id);
+  console.log(createdUser);
   const tokens = await generateJwtTokens(User, createdUser._id);
   res
     .status(201)
@@ -42,7 +44,7 @@ const registerUser = AsyncHandler(async (req, res) => {
     .cookie("refreshToken", tokens.refreshToken, COOKIE_OPTIONS)
     .json(
       new ApiResponse(201, {
-        createdUser,
+        user: createdUser,
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       })
